@@ -3,7 +3,7 @@ module.exports = {
       net42: {
         host: "localhost",
         port: 8545,
-        gas: 500000,
+        gas: 5000000,
         network_id: "42"
       },
       ropsten: {
