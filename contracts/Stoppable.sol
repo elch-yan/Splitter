@@ -3,7 +3,7 @@ pragma solidity 0.5.0;
 import "./Owned.sol";
 
 contract Stoppable is Owned {
-    bool public paused = false;
+    bool private paused = false;
 
     event Pause();
     event Resume();

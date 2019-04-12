@@ -12,8 +12,8 @@ contract('Splitter', accounts => {
     
     let splitterInstance;
     
-    before(async () => {
-        splitterInstance = await Splitter.deployed();
+    beforeEach(async () => {
+        splitterInstance = await Splitter.new();
     });
 
     describe('Splitting functionality', () => {
@@ -47,12 +47,6 @@ contract('Splitter', accounts => {
        * @param {Number} expectedAmount Withdrawal amount to be expected
        */
       async function checkFunds(account, expectedAmount) {
-        // Get funds for an account
-        const funds = await splitterInstance.funds.call(account);
-  
-        // Check if funds are as expected
-        assert.equal(funds, expectedAmount, `Funds for an account: ${account} are incorrect incorrectly`);
-  
         // Get account initial balance
         const initialBalance = web3.utils.toBN(await web3.eth.getBalance(account));
   
@@ -88,7 +82,7 @@ contract('Splitter', accounts => {
     });
 
     describe('Pausing, resuming and self destructing functionality', () => {
-      it('Only owner should be able to pause or resume', async () => {
+      it('Only owner should be able to pause or resume contract', async () => {
         await splitterInstance.pause({from: sender}).should.be.rejectedWith(Error);
 
         let txObject = await splitterInstance.pause({from: owner});
@@ -100,38 +94,33 @@ contract('Splitter', accounts => {
         assert(txObject.receipt.status, `Resuming failed for the owner`);
       });
 
-      it('Should not be able to split when contract paused', async () => {
+      it('Should be able to split only when contract is not paused', async () => {
         // Pausing
-        let txObject = await splitterInstance.pause({from: owner});
-        assert(txObject.receipt.status, `Pausing failed for the owner`);
-
+        await splitterInstance.pause({from: owner});
+        
         // Splitting
         await splitterInstance.split(receiver1, receiver2, { from: sender, value: 100 }).should.be.rejectedWith(Error);
-      });
-
-      it('Should be able to split when contract resumed', async () => {
+        
         // Resuming
-        let txObject = await splitterInstance.resume({from: owner});
-        assert(txObject.receipt.status, `Resuming failed for the owner`);
+        await splitterInstance.resume({from: owner});
 
         // Splitting
         txObject = await splitterInstance.split(receiver1, receiver2, { from: sender, value: 100 });
         assert(txObject.receipt.status, 'Split operation failed when contract was resumed');
       });
 
-      it('Should not be able to withdraw when contract paused', async () => {
+      it('Should be able to withdraw only when contract is not paused', async () => {
+        // Splitting
+        await splitterInstance.split(receiver1, receiver2, { from: sender, value: 100 });
+        
         // Pausing
-        let txObject = await splitterInstance.pause({from: owner});
-        assert(txObject.receipt.status, 'Pausing failed for the owner');
+        await splitterInstance.pause({from: owner});
 
         // Withdrawing
         await splitterInstance.withdraw({from: receiver1}).should.be.rejectedWith(Error);
-      });
 
-      it('Should be able to withdraw when contract resumed', async () => {
         // Resuming
-        let txObject = await splitterInstance.resume({from: owner});
-        assert(txObject.receipt.status, 'Resuming failed for the owner');
+        await splitterInstance.resume({from: owner});
 
         // Withdrawing
         txObject = await splitterInstance.withdraw({from: receiver1});
@@ -141,8 +130,10 @@ contract('Splitter', accounts => {
       it('Only owner can kill the contract', async () => {
         await splitterInstance.kill({from: receiver1}).should.be.rejectedWith(Error);
 
+        assert.equal(await splitterInstance.getOwner(), owner, 'Contract was not deleted');
+        
         await splitterInstance.kill({from: owner});
-        assert.notEqual(splitterInstance.owner(), owner, 'Contract was not deleted');
+        await splitterInstance.getOwner().should.be.rejectedWith(Error);
       });
     });
 });

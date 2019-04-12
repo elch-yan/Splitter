@@ -3,7 +3,7 @@ pragma solidity 0.5.0;
 import "./Stoppable.sol";
 
 contract Splitter is Stoppable {
-    mapping(address => uint) public funds;
+    mapping(address => uint) private funds;
 
     event Split(address indexed _splitter, address indexed _receiver1, address indexed _receiver2, uint256 _value);
     event Withdraw(address indexed _withdrawer, uint256 _value);
