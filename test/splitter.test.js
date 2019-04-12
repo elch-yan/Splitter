@@ -4,14 +4,15 @@ chai.use(require('chai-as-promised')).should();
 const Splitter = artifacts.require("Splitter");
 
 contract('Splitter', accounts => {
-    let splitterInstance, sender, receiver1, receiver2;
+    // Setup accounts
+    const owner = accounts[0];
+    const sender = accounts[1];
+    const receiver1 = accounts[2];
+    const receiver2 = accounts[3];
+    
+    let splitterInstance;
+    
     before(async () => {
-        // Setup accounts
-        owner = accounts[0];
-        sender = accounts[1];
-        receiver1 = accounts[2];
-        receiver2 = accounts[3];
-
         splitterInstance = await Splitter.deployed();
     });
 
