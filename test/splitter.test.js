@@ -1,50 +1,147 @@
+const chai = require('chai');
+chai.use(require('chai-as-promised')).should();
+
 const Splitter = artifacts.require("Splitter");
 
 contract('Splitter', accounts => {
     let splitterInstance, sender, receiver1, receiver2;
     before(async () => {
         // Setup accounts
-        sender = accounts[0];
-        receiver1 = accounts[1];
-        receiver2 = accounts[2];
+        owner = accounts[0];
+        sender = accounts[1];
+        receiver1 = accounts[2];
+        receiver2 = accounts[3];
 
         splitterInstance = await Splitter.deployed();
     });
 
-    it('Should split even amount of ether correctly', async () => {
-      // Split sent ether between receivers.
-      const amount = 10;
-      assert(await splitterInstance.split(receiver1, receiver2, { from: sender, value: amount }), 'Split operation failed');
-
-      // Get funds for receivers accounts after split
-      const receiver1Funds = await splitterInstance.funds.call(receiver1);
-      const receiver2Funds = await splitterInstance.funds.call(receiver2);
-
-      // Checking if everything is as expected
-      assert.equal(receiver1Funds, amount >> 1, 'Value was split incorrectly');
-      assert.equal(receiver2Funds, amount >> 1, 'Value was split incorrectly');
-
-      assert(await splitterInstance.withdraw({ from: receiver1 }), 'Withdrawal failed');
-      assert(await splitterInstance.withdraw({ from: receiver2 }), 'Withdrawal failed');
+    describe('Splitting functionality', () => {
+      it('Should split even amount of ether correctly', async () => {
+        // Split sent ether between receivers.
+        const amount = 10;
+        const txObject = await splitterInstance.split(receiver1, receiver2, { from: sender, value: amount });
+        assert(txObject.receipt.status, 'Split operation failed');
+  
+        // Checking if everything as expected
+        await checkFunds(receiver1, amount >> 1);
+        await checkFunds(receiver2, amount >> 1);
+      });
+  
+      it('Should split odd number of ether correctly', async () => {
+        // Split sent ether between receivers.
+        const amount = 11;
+        const txObject = await splitterInstance.split(receiver1, receiver2, { from: sender, value: amount });
+        assert(txObject.receipt.status, 'Split operation failed');
+        
+        // Checking if everything as expected
+        await checkFunds(sender, 1);
+        await checkFunds(receiver1, amount >> 1);
+        await checkFunds(receiver2, amount >> 1);
+      });
+  
+      /**
+       * Checks funds for an account, withdraws them and checks if everything is as expected
+       *
+       * @param {String} account Account address
+       * @param {Number} expectedAmount Withdrawal amount to be expected
+       */
+      async function checkFunds(account, expectedAmount) {
+        // Get funds for an account
+        const funds = await splitterInstance.funds.call(account);
+  
+        // Check if funds are as expected
+        assert.equal(funds, expectedAmount, `Funds for an account: ${account} are incorrect incorrectly`);
+  
+        // Get account initial balance
+        const initialBalance = web3.utils.toBN(await web3.eth.getBalance(account));
+  
+        // Withdraw funds and get transaction cost
+        const txObject = await splitterInstance.withdraw({ from: account });
+        assert(txObject.receipt.status, `Withdrawal for an account: ${account} failed`);
+        const txPrice = await getTransactionPrice(txObject);
+  
+        // Get account final balance
+        const finalBalance = web3.utils.toBN(await web3.eth.getBalance(account));
+  
+        // Check final balance
+        assert.equal(finalBalance.add(txPrice).sub(initialBalance).toString(), expectedAmount.toString(), `Final balance for an account: ${account} is incorrect`);
+      }
+  
+      /**
+       * Retrieves price for making a transaction
+       *
+       * @param {Object} txObject
+       * @returns {BN} price
+       */
+      async function getTransactionPrice(txObject) {
+        // Obtain used gas from the receipt
+        const gasUsed = web3.utils.toBN(txObject.receipt.gasUsed);
+        
+        // Obtain gasPrice from the transaction
+        const tx = await web3.eth.getTransaction(txObject.tx);
+        const gasPrice = web3.utils.toBN(tx.gasPrice);
+        
+        // Calculate overall price
+        return gasPrice.mul(gasUsed);
+      }
     });
 
-    it('Should split odd number of ether correctly', async () => {
-      // Split sent ether between receivers.
-      const amount = 11;
-      await splitterInstance.split(receiver1, receiver2, { from: sender, value: amount });
-  
-      // Get funds for receivers and senders accounts after split
-      const senderFunds = await splitterInstance.funds.call(sender);
-      const receiver1Funds = await splitterInstance.funds.call(receiver1);
-      const receiver2Funds = await splitterInstance.funds.call(receiver2);
-  
-      // Checking if everything is as expected
-      assert.equal(senderFunds, 1, 'Value was split incorrectly');
-      assert.equal(receiver1Funds, amount >> 1, 'Value was split incorrectly');
-      assert.equal(receiver2Funds, amount >> 1, 'Value was split incorrectly');
+    describe('Pausing, resuming and self destructing functionality', () => {
+      it('Only owner should be able to pause or resume', async () => {
+        await splitterInstance.pause({from: sender}).should.be.rejectedWith(Error);
 
-      assert(await splitterInstance.withdraw({ from: sender }), 'Withdrawal failed');
-      assert(await splitterInstance.withdraw({ from: receiver1 }), 'Withdrawal failed');
-      assert(await splitterInstance.withdraw({ from: receiver2 }), 'Withdrawal failed');
+        let txObject = await splitterInstance.pause({from: owner});
+        assert(txObject.receipt.status, `Pausing failed for the owner`);
+
+        await splitterInstance.resume({from: sender}).should.be.rejectedWith(Error);
+
+        txObject = await splitterInstance.resume({from: owner});
+        assert(txObject.receipt.status, `Resuming failed for the owner`);
+      });
+
+      it('Should not be able to split when contract paused', async () => {
+        // Pausing
+        let txObject = await splitterInstance.pause({from: owner});
+        assert(txObject.receipt.status, `Pausing failed for the owner`);
+
+        // Splitting
+        await splitterInstance.split(receiver1, receiver2, { from: sender, value: 100 }).should.be.rejectedWith(Error);
+      });
+
+      it('Should be able to split when contract resumed', async () => {
+        // Resuming
+        let txObject = await splitterInstance.resume({from: owner});
+        assert(txObject.receipt.status, `Resuming failed for the owner`);
+
+        // Splitting
+        txObject = await splitterInstance.split(receiver1, receiver2, { from: sender, value: 100 });
+        assert(txObject.receipt.status, 'Split operation failed when contract was resumed');
+      });
+
+      it('Should not be able to withdraw when contract paused', async () => {
+        // Pausing
+        let txObject = await splitterInstance.pause({from: owner});
+        assert(txObject.receipt.status, 'Pausing failed for the owner');
+
+        // Withdrawing
+        await splitterInstance.withdraw({from: receiver1}).should.be.rejectedWith(Error);
+      });
+
+      it('Should be able to withdraw when contract resumed', async () => {
+        // Resuming
+        let txObject = await splitterInstance.resume({from: owner});
+        assert(txObject.receipt.status, 'Resuming failed for the owner');
+
+        // Withdrawing
+        txObject = await splitterInstance.withdraw({from: receiver1});
+        assert(txObject.receipt.status, 'Withdrawal failed when contract was resumed');
+      });
+
+      it('Only owner can kill the contract', async () => {
+        await splitterInstance.kill({from: receiver1}).should.be.rejectedWith(Error);
+
+        await splitterInstance.kill({from: owner});
+        assert.notEqual(splitterInstance.owner(), owner, 'Contract was not deleted');
+      });
     });
 });
