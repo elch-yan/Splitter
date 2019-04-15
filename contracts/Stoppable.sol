@@ -18,6 +18,10 @@ contract Stoppable is Owned {
         _;
     }
 
+    function isPaused() public view returns(bool) {
+        return paused;
+    }
+
     function pause() public onlyowner whenNotPaused returns(bool) {
         paused = true;
         emit Pause();
@@ -33,7 +37,7 @@ contract Stoppable is Owned {
     }
 
     function kill() public onlyowner returns(bool) {
-        selfdestruct(owner);
+        selfdestruct(getOwner());
         return true;
     }
 }

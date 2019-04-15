@@ -47,6 +47,12 @@ contract('Splitter', accounts => {
        * @param {Number} expectedAmount Withdrawal amount to be expected
        */
       async function checkFunds(account, expectedAmount) {
+        // Get funds for an account
+        const funds = await splitterInstance.funds.call(account);
+  
+        // Check if funds are as expected
+        assert.equal(funds, expectedAmount, `Funds for an account: ${account} are incorrect incorrectly`);
+
         // Get account initial balance
         const initialBalance = web3.utils.toBN(await web3.eth.getBalance(account));
   
