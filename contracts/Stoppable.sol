@@ -1,12 +1,12 @@
-pragma solidity 0.5.0;
+pragma solidity 0.5.5;
 
 import "./Owned.sol";
 
 contract Stoppable is Owned {
     bool private paused = false;
 
-    event Pause();
-    event Resume();
+    event LogPause();
+    event LogResume();
 
     modifier whenNotPaused() {
         require(!paused, "Can't perform operation while contract is paused!");
@@ -24,14 +24,14 @@ contract Stoppable is Owned {
 
     function pause() public onlyowner whenNotPaused returns(bool) {
         paused = true;
-        emit Pause();
+        emit LogPause();
         
         return true;
     }
 
     function resume() public onlyowner whenPaused returns(bool) {
         paused = false;
-        emit Resume();
+        emit LogResume();
 
         return true;
     }

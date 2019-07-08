@@ -1,24 +1,27 @@
-pragma solidity 0.5.0;
+pragma solidity 0.5.5;
 
+import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "./Stoppable.sol";
 
 contract Splitter is Stoppable {
+    using SafeMath for uint256;
+
     mapping(address => uint) public funds;
 
-    event Split(address indexed _splitter, address indexed _receiver1, address indexed _receiver2, uint256 _value);
-    event Withdraw(address indexed _withdrawer, uint256 _value);
+    event LogSplit(address indexed _splitter, address indexed _receiver1, address indexed _receiver2, uint256 _value);
+    event LogWithdraw(address indexed _withdrawer, uint256 _value);
 
     function split(address receiver1, address receiver2) public payable whenNotPaused returns(bool) {
         require(msg.value > 0, "Function value can't be empty!");
         require(receiver1 != address(0) && receiver2 != address(0), "Receivers addresses cannot be empty!");
 
-        uint256 amount = msg.value >> 1;
+        uint256 amount = msg.value.div(2);
 
-        funds[msg.sender] += msg.value % 2;// in case value is odd, the remainder is kept for the splitter
-        funds[receiver1] += amount;
-        funds[receiver2] += amount;
+        funds[msg.sender] = funds[msg.sender].add(msg.value.mod(2));// in case value is odd, the remainder is kept for the splitter
+        funds[receiver1] = funds[receiver1].add(amount);
+        funds[receiver2] = funds[receiver2].add(amount);
 
-        emit Split(msg.sender, receiver1, receiver2, msg.value);
+        emit LogSplit(msg.sender, receiver1, receiver2, msg.value);
         
         return true;
     }
@@ -30,7 +33,7 @@ contract Splitter is Stoppable {
         funds[msg.sender] = 0;
         msg.sender.transfer(fund);
 
-        emit Withdraw(msg.sender, fund);
+        emit LogWithdraw(msg.sender, fund);
 
         return true;
     }
