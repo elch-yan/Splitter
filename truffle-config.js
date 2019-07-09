@@ -5,6 +5,11 @@ module.exports = {
       },
     },
     networks: {
+      ganache: {
+        host: "localhost",
+        port: 8545,
+        network_id: "*"
+      },
       net42: {
         host: "localhost",
         port: 8545,

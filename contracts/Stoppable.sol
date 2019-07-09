@@ -5,8 +5,8 @@ import "./Owned.sol";
 contract Stoppable is Owned {
     bool private paused = false;
 
-    event LogPause();
-    event LogResume();
+    event LogPause(address indexed _owner);
+    event LogResume(address indexed _owner);
 
     modifier whenNotPaused() {
         require(!paused, "Can't perform operation while contract is paused!");
@@ -24,14 +24,14 @@ contract Stoppable is Owned {
 
     function pause() public onlyowner whenNotPaused returns(bool) {
         paused = true;
-        emit LogPause();
+        emit LogPause(msg.sender);
         
         return true;
     }
 
     function resume() public onlyowner whenPaused returns(bool) {
         paused = false;
-        emit LogResume();
+        emit LogResume(msg.sender);
 
         return true;
     }
