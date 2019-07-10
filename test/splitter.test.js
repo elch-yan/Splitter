@@ -13,7 +13,7 @@ contract('Splitter', accounts => {
     let splitterInstance;
     
     beforeEach(async () => {
-        splitterInstance = await Splitter.new();
+        splitterInstance = await Splitter.new({ from: owner });
     });
 
     describe('Splitting functionality', () => {
@@ -133,7 +133,16 @@ contract('Splitter', accounts => {
         assert(txObject.receipt.status, 'Withdrawal failed when contract was resumed');
       });
 
+      it('Only paused contract can be killed', async () => {
+        await splitterInstance.kill({from: owner}).should.be.rejectedWith(Error);
+
+        assert.equal(await splitterInstance.getOwner(), owner, 'Contract was not deleted');
+      });
+
       it('Only owner can kill the contract', async () => {
+        // Initially pausing contract
+        await splitterInstance.pause({from: owner});
+
         await splitterInstance.kill({from: receiver1}).should.be.rejectedWith(Error);
 
         assert.equal(await splitterInstance.getOwner(), owner, 'Contract was not deleted');

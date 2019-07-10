@@ -1,11 +1,11 @@
 pragma solidity 0.5.5;
 
 contract Owned {
-    address payable private owner;
+    address private owner;
 
-    event LogChangeOwner(address _originalOwner, address _newOwner);
+    event LogChangeOwner(address indexed originalOwner, address indexed newOwner);
 
-    modifier onlyowner {
+    modifier onlyOwner {
         require(owner == msg.sender, "Only owner cann call given function!");
         _;
     }
@@ -14,7 +14,7 @@ contract Owned {
 		owner = msg.sender;
 	}
 
-    function changeOwner(address payable newOwner) public onlyowner returns(bool) {
+    function changeOwner(address newOwner) public onlyOwner returns(bool) {
         require(newOwner != address(0), "New owners address cannot be empty!");
         
         owner = newOwner;
@@ -23,7 +23,7 @@ contract Owned {
         return true;
     }
 
-    function getOwner() public view returns(address payable) {
+    function getOwner() public view returns(address) {
         return owner;
     }
 }

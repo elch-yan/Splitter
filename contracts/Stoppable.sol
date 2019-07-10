@@ -3,10 +3,10 @@ pragma solidity 0.5.5;
 import "./Owned.sol";
 
 contract Stoppable is Owned {
-    bool private paused = false;
+    bool private paused;
 
-    event LogPause(address indexed _owner);
-    event LogResume(address indexed _owner);
+    event LogPaused(address indexed owner);
+    event LogResumed(address indexed owner);
 
     modifier whenNotPaused() {
         require(!paused, "Can't perform operation while contract is paused!");
@@ -18,26 +18,30 @@ contract Stoppable is Owned {
         _;
     }
 
+    constructor() public {
+		paused = false;
+	}
+
     function isPaused() public view returns(bool) {
         return paused;
     }
 
-    function pause() public onlyowner whenNotPaused returns(bool) {
+    function pause() public onlyOwner whenNotPaused returns(bool) {
         paused = true;
-        emit LogPause(msg.sender);
+        emit LogPaused(msg.sender);
         
         return true;
     }
 
-    function resume() public onlyowner whenPaused returns(bool) {
+    function resume() public onlyOwner whenPaused returns(bool) {
         paused = false;
-        emit LogResume(msg.sender);
+        emit LogResumed(msg.sender);
 
         return true;
     }
 
-    function kill() public onlyowner returns(bool) {
-        selfdestruct(getOwner());
+    function kill() public onlyOwner whenPaused returns(bool) {
+        selfdestruct(msg.sender);
         return true;
     }
 }

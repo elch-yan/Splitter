@@ -8,8 +8,8 @@ contract Splitter is Stoppable {
 
     mapping(address => uint) public funds;
 
-    event LogSplit(address indexed _splitter, address indexed _receiver1, address indexed _receiver2, uint256 _value);
-    event LogWithdraw(address indexed _withdrawer, uint256 _value);
+    event LogSplit(address indexed splitter, address indexed receiver1, address indexed receiver2, uint256 value);
+    event LogWithdraw(address indexed withdrawer, uint256 value);
 
     function split(address receiver1, address receiver2) public payable whenNotPaused returns(bool) {
         require(msg.value > 0, "Function value can't be empty!");
@@ -31,9 +31,9 @@ contract Splitter is Stoppable {
 
         uint fund = funds[msg.sender];
         funds[msg.sender] = 0;
-        msg.sender.transfer(fund);
 
         emit LogWithdraw(msg.sender, fund);
+        msg.sender.transfer(fund);
 
         return true;
     }
